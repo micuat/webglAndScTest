@@ -25,7 +25,7 @@
       height: 50px;
       background: #d3d3d3;
       outline: none;
-      opacity: 0.7;
+      opacity: 0.4;
       -webkit-transition: .2s;
       transition: opacity .2s;
     }
@@ -507,8 +507,9 @@ color *= 1.0 - blending*m_dist;
 
 			vec4 sum = texture2D(bufferTexture, uv);
       vec4 src = texture2D(videoTexture, uv);
-      vec3 h = _hsvToRgb(vec3(fract(time * 0.2)*1.0, 1.0, 1.0));
-      src = color(shape(rotate(modulate(st, noise(st, 10.0, time * 0.1), 0.9), time * 0.3, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
+      vec3 h = _hsvToRgb(vec3(sin(time * 0.2)*0.2+0.4, 1.0, 1.0));
+      //src = shape(modulate(st, noise(st, 10.0, 0.0), 0.2), 3.0, 0.2, 0.1);
+      src = color(shape(rotate(modulate(st, noise(st, 7.0, time * 0.1), 0.1), time * 0.3, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
       //src = color(shape(kaleid(rotate(st, 0.01, time * 0.1), 40.0), 3.0, 0.2, 0.5), 0.1, 0.1, 0.9);
       sum = mix(sum, src, mixer);
       sum = colorama(sum, colora);
