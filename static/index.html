@@ -11,9 +11,9 @@
     canvas {
       display: block;
     }
-        .slidecontainer {
+    .slidecontainer {
       width: 100%;
-      z-index: 1;
+      z-index: 3;
       position: absolute;
       top: 0px;
       left: 0px;
@@ -51,6 +51,9 @@
     }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/85/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
+
 </head>
 
 <body>
@@ -73,7 +76,7 @@
     const socket = io();
     const sliderValues = new Array(8);
     socket.on('sliders', (msg) => {
-      for(let i in msg.sliders) {
+      for (let i in msg.sliders) {
         sliderValues[i] = msg.sliders[i];
         document.getElementById('slide' + i).value = msg.sliders[i];
       }
@@ -94,6 +97,7 @@
     uniform float mixer;
     uniform float radial;
     uniform float colora;
+    uniform float intensity;
 
     
   //	Simplex 3D Noise
@@ -509,9 +513,10 @@ color *= 1.0 - blending*m_dist;
       vec4 src = texture2D(videoTexture, uv);
       vec3 h = _hsvToRgb(vec3(sin(time * 0.2)*0.2+0.4, 1.0, 1.0));
       //src = shape(modulate(st, noise(st, 10.0, 0.0), 0.2), 3.0, 0.2, 0.1);
-      src = color(shape(rotate(modulate(st, noise(st, 7.0, time * 0.1), 0.1), time * 0.3, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
+      src = color(shape(rotate(modulate(st, noise(st, 5.0, 0.1), 0.3), time * 0.3, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
       //src = color(shape(kaleid(rotate(st, 0.01, time * 0.1), 40.0), 3.0, 0.2, 0.5), 0.1, 0.1, 0.9);
-      sum = mix(sum, src, mixer);
+      //sum = mix(sum, src, mixer);
+      sum = sum * mixer + src * intensity;
       sum = colorama(sum, colora);
 			gl_FragColor = sum;
 		 	
@@ -576,10 +581,10 @@ color *= 1.0 - blending*m_dist;
       //Create 2 buffer textures
       textureA = new THREE.WebGLRenderTarget(width, height, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter });
       textureB = new THREE.WebGLRenderTarget(width, height, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter });
-      textureA.minFilter = THREE.LinearFilter;
-      textureA.magFilter = THREE.LinearFilter;
-      textureB.minFilter = THREE.LinearFilter;
-      textureB.magFilter = THREE.LinearFilter;
+      textureA.texture.minFilter = THREE.LinearFilter;
+      textureA.texture.magFilter = THREE.LinearFilter;
+      textureB.texture.minFilter = THREE.LinearFilter;
+      textureB.texture.magFilter = THREE.LinearFilter;
       //Pass textureA to shader
       bufferMaterial = new THREE.ShaderMaterial({
         uniforms: {
@@ -590,7 +595,8 @@ color *= 1.0 - blending*m_dist;
           time: { type: "f", value: Math.random() * Math.PI * 2 + Math.PI },
           mixer: { type: "f", value: 0.01 },
           radial: { type: "f", value: 1.0 },
-          colora: { type: "f", value: 0.001 }
+          colora: { type: "f", value: 0.001 },
+          intensity: { type: "f", value: 0.001 }
         },
         fragmentShader: document.getElementById('fragShader').innerHTML
       });
@@ -629,15 +635,37 @@ color *= 1.0 - blending*m_dist;
 
       //Update time
       bufferMaterial.uniforms.time.value += 0.01;
-      bufferMaterial.uniforms.mixer.value = Math.pow(1 - Math.min(sliderValues[4] * 0.001 * 2, 1), 4);
+      bufferMaterial.uniforms.mixer.value = Math.pow(Math.min(sliderValues[4] * 0.001 * 1, 1), 4);
       bufferMaterial.uniforms.radial.value = sliderValues[0] * 0.001 * 0.2 + 0.9;
       bufferMaterial.uniforms.colora.value = sliderValues[1] * 0.001 * 0.01;
+      bufferMaterial.uniforms.intensity.value = sliderValues[7] * 0.001;
 
       //Finally, draw to the screen
       renderer.render(scene, camera);
     }
     render();
 
+    const s = (p) => {
+
+      let x = 100;
+      let y = 100;
+
+      p.setup = () => {
+        let canvas = p.createCanvas(width, height);
+        canvas.style('top', '0px');
+        canvas.style('left', '0px');
+        canvas.style('z-index', '2');
+        canvas.style('position', 'absolute');
+      };
+
+      p.draw = () => {
+        p.clear();
+        p.fill(255);
+        p.rect(x, y, 50, 50);
+      };
+    };
+
+    let myp5 = new p5(s);
 
   </script>
 </body>
