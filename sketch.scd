@@ -1,5 +1,5 @@
 s.options.device = "MME : Speakers (Surface Dock)";
-Server.internal.options.device = "MME : Speakers (Surface Dock)";
+s.options.device = "MME : Headphones (Realtek High Defini";
 s.boot;
 
 
@@ -20,8 +20,8 @@ SynthDef(\sin, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index 
 	Out.ar(bus, car ! 2)
 }).add;
 
-SynthDef(\preDelay, { arg outBus = 0, gain, inBus, delay, effect;
-	Out.ar(outBus, gain*(DelayN.ar(Limiter.ar(InFeedback.ar(outBus, 1)),0.01,Rand(0.001,0.01),effect)+DelayN.ar(In.ar(inBus, 1), 0.01, 0.01)) ! 2);
+SynthDef(\preDelay, { arg outBus = 0, gain, inBus, delay = 0.1, effect;
+	Out.ar(outBus, (DelayN.ar(Limiter.ar(InFeedback.ar(outBus, 1)),1.0,delay,effect)+gain*DelayN.ar(In.ar(inBus, 1), 0.01, 0.01)) ! 2);
 }).add;
 
 SynthDef(\reverb, { arg outBus = 0, inBus, effect, mix = 0.25, room = 0.15, damp = 0.5;
@@ -42,7 +42,7 @@ b = Bus.audio(s,1); // this will be our effects bus
 (
 x = Synth.new(\preDelay, [\inBus, b]);
 // x = Synth.new(\reverb, [\inBus, b]);
-a = Synth.before(x, \sin, [\bus, b, \freq, 440, \carPartial, 1, \modPartial, 1.99, \mul, 0.071]);
+a = Synth.before(x, \sin, [\bus, b, \freq, 440, \carPartial, 1, \modPartial, 1.99, \mul, 1]);
 
 OSCdef(\control00, {|msg|
 	a.set(\freq, msg[1] * 1);
