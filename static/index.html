@@ -94,10 +94,14 @@
 		uniform sampler2D bufferTexture;//Our input texture
 		uniform sampler2D videoTexture;
     uniform float time;
-    uniform float mixer;
-    uniform float radial;
-    uniform float colora;
-    uniform float intensity;
+    uniform float slider0;
+    uniform float slider1;
+    uniform float slider2;
+    uniform float slider3;
+    uniform float slider4;
+    uniform float slider5;
+    uniform float slider6;
+    uniform float slider7;
 
     
   //	Simplex 3D Noise
@@ -504,6 +508,11 @@ color *= 1.0 - blending*m_dist;
 
 
 		void main() {
+      float mixer = pow(slider4, 4.0);
+      float radial = slider0 * 0.2 + 0.9;
+      float colora = slider1 * 0.01;
+      float intensity = slider7;
+
 			vec2 st = gl_FragCoord.xy / res;
       vec2 uv = st - vec2(0.5);
 			uv *= radial;
@@ -593,10 +602,14 @@ color *= 1.0 - blending*m_dist;
           //Keeps the resolution
           videoTexture: { type: "t", value: videoTexture },
           time: { type: "f", value: Math.random() * Math.PI * 2 + Math.PI },
-          mixer: { type: "f", value: 0.01 },
-          radial: { type: "f", value: 1.0 },
-          colora: { type: "f", value: 0.001 },
-          intensity: { type: "f", value: 0.001 }
+          slider0: { type: "f", value: 0.0 },
+          slider1: { type: "f", value: 0.0 },
+          slider2: { type: "f", value: 0.0 },
+          slider3: { type: "f", value: 0.0 },
+          slider4: { type: "f", value: 0.0 },
+          slider5: { type: "f", value: 0.0 },
+          slider6: { type: "f", value: 0.0 },
+          slider7: { type: "f", value: 0.0 },
         },
         fragmentShader: document.getElementById('fragShader').innerHTML
       });
@@ -635,10 +648,9 @@ color *= 1.0 - blending*m_dist;
 
       //Update time
       bufferMaterial.uniforms.time.value += 0.01;
-      bufferMaterial.uniforms.mixer.value = Math.pow(Math.min(sliderValues[4] * 0.001 * 1, 1), 4);
-      bufferMaterial.uniforms.radial.value = sliderValues[0] * 0.001 * 0.2 + 0.9;
-      bufferMaterial.uniforms.colora.value = sliderValues[1] * 0.001 * 0.01;
-      bufferMaterial.uniforms.intensity.value = sliderValues[7] * 0.001;
+      for(let i in sliderValues) {
+        bufferMaterial.uniforms['slider' + i].value = sliderValues[i] * 0.001;
+      }
 
       //Finally, draw to the screen
       renderer.render(scene, camera);
