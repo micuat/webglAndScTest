@@ -4,7 +4,7 @@ s.boot;
 
 
 (
-SynthDef(\sin, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, mul = 1.0;
+SynthDef(\sin, { arg outBus = 0, freq = 440, carPartial = 1, modPartial = 1, index = 3, mul = 1.0;
 	var mod;
 	var car;
 	mod = SinOsc.ar(
@@ -17,11 +17,15 @@ SynthDef(\sin, { arg bus = 0, freq = 440, carPartial = 1, modPartial = 1, index 
 		mul: mul
 	);
 
-	Out.ar(bus, car ! 2)
+	Out.ar(outBus, car ! 2)
 }).add;
 
-SynthDef(\preDelay, { arg outBus = 0, gain, inBus, delay = 0.1, effect;
-	Out.ar(outBus, (DelayN.ar(Limiter.ar(InFeedback.ar(outBus, 1)),1.0,delay,effect)+gain*DelayN.ar(In.ar(inBus, 1), 0.01, 0.01)) ! 2);
+SynthDef(\mixer, { arg outBus = 0, gain0 = 0.0, inBus0, gain1 = 0.0, inBus1;
+	Out.ar(outBus, DelayN.ar(In.ar(inBus0, 2), 0.01, 0.01, gain0) + DelayN.ar(In.ar(inBus1, 2), 0.01, 0.01, gain1));
+}).add;
+
+SynthDef(\feedback, { arg outBus = 0, gain = 0.0, inBus, delay = 0.1, effect;
+	Out.ar(outBus, (DelayN.ar(Limiter.ar(InFeedback.ar(outBus, 2)),1.0,delay,effect)+gain*DelayN.ar(In.ar(inBus, 2), 0.01, 0.01)));
 }).add;
 
 SynthDef(\reverb, { arg outBus = 0, inBus, effect, mix = 0.25, room = 0.15, damp = 0.5;
@@ -38,11 +42,14 @@ SynthDef(\reverb, { arg outBus = 0, inBus, effect, mix = 0.25, room = 0.15, damp
 }).add;
 )
 
-b = Bus.audio(s,1); // this will be our effects bus
+b = Bus.audio(s,2); // this will be our effects bus
+c = Bus.audio(s,2);
+d = Bus.audio(s,2);
 (
-x = Synth.new(\preDelay, [\inBus, b]);
-// x = Synth.new(\reverb, [\inBus, b]);
-a = Synth.before(x, \sin, [\bus, b, \freq, 440, \carPartial, 1, \modPartial, 1.99, \mul, 1]);
+y = Synth.new(\mixer, [\inBus0, c, \inBus1, d, \outBus, 0, \gain0, 1.0, \gain1, 0.0]);
+x = Synth.before(y, \feedback, [\inBus, b, \outBus, c, \gain, 0.0]);
+a = Synth.before(x, \sin, [\outBus, b, \freq, 440, \carPartial, 1, \modPartial, 1.99, \mul, 1]);
+e = Synth.before(x, \sin, [\outBus, d, \freq, 440, \carPartial, 1, \modPartial, 1.99, \mul, 1]);
 
 OSCdef(\control00, {|msg|
 	a.set(\freq, msg[1] * 1);
@@ -65,7 +72,7 @@ OSCdef(\control04, {|msg|
 }, "/control/04");
 
 OSCdef(\control05, {|msg|
-	x.set(\mix, msg[1] * 1 * 0.001);
+	y.set(\gain1, msg[1] * 1 * 0.001);
 }, "/control/05");
 
 OSCdef(\control06, {|msg|
