@@ -50,9 +50,12 @@
       cursor: pointer;
     }
 </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/85/three.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/85/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/p5.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.9.0/addons/p5.dom.min.js"></script> -->
+  <script src="js/three.js"></script>
+  <script src="js/p5.min.js"></script>
+  <script src="js/p5.dom.min.js"></script>
 
 </head>
 
@@ -499,7 +502,8 @@ color *= 1.0 - blending*m_dist;
         
           vec4 colorama(vec4 c0, float amount){
     vec3 c = _rgbToHsv(c0.rgb);
-    c += vec3(amount);
+    //c += vec3(amount);
+    c.r += vec3(amount).r;
     c = _hsvToRgb(c);
     c = fract(c);
     return vec4(c, c0.a);
@@ -508,25 +512,23 @@ color *= 1.0 - blending*m_dist;
 
 
 		void main() {
-      float mixer = pow(slider4, 4.0);
-      float radial = slider0 * 0.2 + 0.9;
-      float colora = slider1 * 0.01;
+      float feedback = 1.0 - pow(1.0 - slider4, 4.0);
+      float radial = slider0 * 0.005 - 0.0025 + 1.0;
+      float colora = slider1;
       float intensity = slider7;
+      float rot = slider6;
 
 			vec2 st = gl_FragCoord.xy / res;
-      vec2 uv = st - vec2(0.5);
-			uv *= radial;
-			uv += vec2(0.5);
+      vec2 uv = scale(st, 1.0 / radial, 1.0, 1.0);
 
 			vec4 sum = texture2D(bufferTexture, uv);
-      vec4 src = texture2D(videoTexture, uv);
-      vec3 h = _hsvToRgb(vec3(sin(time * 0.2)*0.2+0.4, 1.0, 1.0));
+      vec4 src;// = texture2D(videoTexture, uv);
+      vec3 h = _hsvToRgb(vec3(fract(2.0*length(modulate(st-vec2(0.5), noise(st, 10.0, 0.0), 0.1))+time * 0.5)*0.3+0.4, 1.0, 1.0));
       //src = shape(modulate(st, noise(st, 10.0, 0.0), 0.2), 3.0, 0.2, 0.1);
-      src = color(shape(rotate(modulate(st, noise(st, 5.0, 0.1), 0.3), time * 0.3, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
+      src = color(shape(rotate(modulate(st, noise(st, 5.0, 0.1), 0.3), time * 0.3+rot, 0.0), 3.0, 0.2, 0.1), h.r, h.g, h.b);
       //src = color(shape(kaleid(rotate(st, 0.01, time * 0.1), 40.0), 3.0, 0.2, 0.5), 0.1, 0.1, 0.9);
-      //sum = mix(sum, src, mixer);
-      sum = sum * mixer + src * intensity;
-      sum = colorama(sum, colora);
+      sum = sum * feedback + src * intensity;
+      sum = mix(sum, colorama(sum, 0.001), colora);
 			gl_FragColor = sum;
 		 	
 		 }
