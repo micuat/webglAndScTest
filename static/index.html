@@ -56,6 +56,7 @@
   <script src="js/three.js"></script>
   <script src="js/p5.min.js"></script>
   <script src="js/p5.dom.min.js"></script>
+  <script src="js/EasingFunctions.js"></script>
 
 </head>
 
@@ -512,7 +513,7 @@ color *= 1.0 - blending*m_dist;
 
 
 		void main() {
-      float feedback = 1.0 - pow(1.0 - slider4, 4.0);
+      float feedback = 1.0 - pow(1.0 - slider4, 6.0);
       float radial = slider0 * 0.005 - 0.0025 + 1.0;
       float colora = slider1;
       float intensity = slider7;
@@ -522,7 +523,9 @@ color *= 1.0 - blending*m_dist;
 			vec4 sum = texture2D(bufferTexture, st);
       vec2 uv = st;// = scale(st, 1.0 / radial, 1.0, 1.0);
       uv -= vec2(0.5);
-      uv += vec2(0.005) - 0.01*fract(sum.rg);
+      float theta = sum.r * 4.0 * 3.1415;
+      float amount = sum.g * 0.01;
+      uv += vec2(cos(theta) * amount, sin(theta) * amount);
       uv += vec2(0.5);
 
 			sum = texture2D(bufferTexture, uv);
@@ -963,12 +966,85 @@ color *= 1.0 - blending*m_dist;
         vec2 uv = st;
   
         vec4 src = texture2D(videoTexture, uv);
-        vec4 moc = color(src, 0.2, 0.5, 1.0);
+        vec4 moc = luma(color(src, 0.8, 0.3, 1.0), 0.1, 0.05);
         gl_FragColor = mix(src, moc, passthru);
          
        }
     </script>
   <script>
+    
+    class Sequencer {
+      constructor({ seq, offset, update }) {
+        this.seq = seq;
+        this.offset = offset;
+        this.updateImpl = update;
+        this.index = 0;
+        this.lastT = 0;
+        this.tDeltaMillis = 500;
+
+        this.randomAmount = 30;
+        this.randomSeq = new Array(seq.length);
+        for (let n = 0; n < this.randomAmount; n++) {
+          this.randomSeq[n] = [];
+          for (let i = 0; i < this.seq.length; i++) {
+            this.randomSeq[n][i] = Math.floor(Math.random() * 16 - 8);
+          }
+        }
+      }
+
+      update(t) {
+        let offset0 = this.offset[this.index];
+        let offset1 = this.offset[(this.index - 1 + this.offset.length) % this.offset.length];
+        let count0 = Math.floor(t / this.tDeltaMillis + offset0);
+        let count1 = Math.floor(this.lastT / this.tDeltaMillis + offset1);
+        if (count0 - count1 > 0) {
+          this.lastT = t;
+          this.index = (this.index + 1) % this.seq.length;
+          this.updateImpl(this);
+        }
+      }
+
+      getNote(t, i) {
+        let offset0 = this.offset[this.index];
+        let offset1 = this.offset[(this.index - 1 + this.offset.length) % this.offset.length];
+        let tDiff = t - this.lastT;
+        let tOffsetDiff = (1 - offset0 + offset1) * this.tDeltaMillis;
+        let rate = EasingFunctions.easeInOutQuint(tDiff / tOffsetDiff);
+
+        if (i == undefined) {
+          let note1 = this.seq[this.index];
+          let note0 = this.seq[(this.index - 1 + this.seq.length) % this.seq.length];
+          return note0 * (1 - rate) + note1 * rate;
+        }
+        else {
+          let note1 = this.randomSeq[i][this.index];
+          let note0 = this.randomSeq[i][(this.index - 1 + this.seq.length) % this.seq.length];
+          return note0 * (1 - rate) + note1 * rate;
+        }
+      }
+    }
+
+    const seq0 = new Sequencer({
+      seq: [2, 3, 4, 0, 2, 0, 4, 5],//, 2, 3, 4, 0, 2, 0, 4, 5],
+      offset: [0.0, 0.0, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0],
+      update: (self) => {
+        // if (Math.random() > 0.85) {
+        //   if (Math.random() > 0.1) {
+        //     self.seq[self.index] = Math.floor(Math.random() * 4) + 1;
+        //   }
+        //   else {
+        //     self.seq[self.index] = 0;
+        //   }
+        //   // self.offset[self.index] = Math.floor(Math.random() * 4) * 0.1;
+        // }
+      }
+    })
+    setInterval(() => {
+      let d = new Date();
+      let t = d.getTime();
+
+      seq0.update(t);
+    }, 5);
     var scene;
     var camera;
 
@@ -1127,8 +1203,11 @@ color *= 1.0 - blending*m_dist;
       };
 
       p.draw = () => {
+        let d = new Date();
+        let t = d.getTime();
         p.clear();
         p.fill(255);
+        x = seq0.getNote(t) * 10;
         p.rect(x, y, 50, 50);
       };
     };
