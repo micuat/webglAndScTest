@@ -518,13 +518,16 @@ color *= 1.0 - blending*m_dist;
       float colora = slider1;
       float intensity = slider7;
       float rot = slider6;
+      float noiseScale = slider5 *1.0;
 
 			vec2 st = gl_FragCoord.xy / res;
 			vec4 sum = texture2D(bufferTexture, st);
+			//vec4 sum = _rgbToHsv(texture2D(bufferTexture, st).rgb).rgbb;
       vec2 uv = st;// = scale(st, 1.0 / radial, 1.0, 1.0);
       uv -= vec2(0.5);
-      float theta = sum.r * 4.0 * 3.1415;
-      float amount = sum.g * 0.01;
+      float theta = _noise(vec3(sum.rgb)*noiseScale) * 4.0 * 3.1415;
+      //float theta = _noise(vec3(sum.r, st.t*noiseScale, st.s*noiseScale)) * 4.0 * 3.1415;
+      float amount = 0.001;
       uv += vec2(cos(theta) * amount, sin(theta) * amount);
       uv += vec2(0.5);
 
@@ -974,13 +977,15 @@ color *= 1.0 - blending*m_dist;
   <script>
     
     class Sequencer {
-      constructor({ seq, offset, update }) {
+      constructor({ seq, offset, bpm, ease, update }) {
         this.seq = seq;
         this.offset = offset;
         this.updateImpl = update;
         this.index = 0;
         this.lastT = 0;
-        this.tDeltaMillis = 500;
+        this.tDeltaMillis = bpm == undefined ? 500 : (1000.0 / (bpm / 60.0));
+
+        this.ease = ease == undefined ? EasingFunctions.easeInOutQuint : ease;
 
         this.randomAmount = 30;
         this.randomSeq = new Array(seq.length);
@@ -1005,11 +1010,22 @@ color *= 1.0 - blending*m_dist;
       }
 
       getNote(t, i) {
+        if (i == undefined) {
+          let note1 = this.seq[this.index];
+          return note1;
+        }
+        else {
+          let note1 = this.randomSeq[i][this.index];
+          return note1;
+        }
+      }
+
+      getNoteEased(t, i) {
         let offset0 = this.offset[this.index];
         let offset1 = this.offset[(this.index - 1 + this.offset.length) % this.offset.length];
         let tDiff = t - this.lastT;
         let tOffsetDiff = (1 - offset0 + offset1) * this.tDeltaMillis;
-        let rate = EasingFunctions.easeInOutQuint(tDiff / tOffsetDiff);
+        let rate = this.ease(tDiff / tOffsetDiff);
 
         if (i == undefined) {
           let note1 = this.seq[this.index];
@@ -1022,29 +1038,20 @@ color *= 1.0 - blending*m_dist;
           return note0 * (1 - rate) + note1 * rate;
         }
       }
+
+      getBang(t) {
+        let offset0 = this.offset[this.index];
+        let offset1 = this.offset[(this.index - 1 + this.offset.length) % this.offset.length];
+        let tDiff = t - this.lastT;
+        let tOffsetDiff = (1 - offset0 + offset1) * this.tDeltaMillis;
+        let tw = Math.max(Math.min(1, tDiff / tOffsetDiff), 0);
+
+        let rate = this.ease(tw) * 2.0;
+        if(rate > 1.0) rate = 2.0 - rate;
+        return rate;
+      }
     }
 
-    const seq0 = new Sequencer({
-      seq: [2, 3, 4, 0, 2, 0, 4, 5],//, 2, 3, 4, 0, 2, 0, 4, 5],
-      offset: [0.0, 0.0, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0],
-      update: (self) => {
-        // if (Math.random() > 0.85) {
-        //   if (Math.random() > 0.1) {
-        //     self.seq[self.index] = Math.floor(Math.random() * 4) + 1;
-        //   }
-        //   else {
-        //     self.seq[self.index] = 0;
-        //   }
-        //   // self.offset[self.index] = Math.floor(Math.random() * 4) * 0.1;
-        // }
-      }
-    })
-    setInterval(() => {
-      let d = new Date();
-      let t = d.getTime();
-
-      seq0.update(t);
-    }, 5);
     var scene;
     var camera;
 
@@ -1189,13 +1196,37 @@ color *= 1.0 - blending*m_dist;
     }
     render();
 
+    const seq0 = new Sequencer({
+      seq: ['up', 'down', 'up', 'up', 'up', 'down', 'up', 'none'],
+      // seq: [2, 3, 4, 0, 2, 0, 4, 5],
+      // offset: [0.0, 0.0, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0],
+      offset: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+      bpm: 60,
+      ease: EasingFunctions.easeInOutQuart,
+      update: (self) => {
+        // if (Math.random() > 0.85) {
+        //   if (Math.random() > 0.1) {
+        //     self.seq[self.index] = Math.floor(Math.random() * 4) + 1;
+        //   }
+        //   else {
+        //     self.seq[self.index] = 0;
+        //   }
+        //   // self.offset[self.index] = Math.floor(Math.random() * 4) * 0.1;
+        // }
+      }
+    })
+    setInterval(() => {
+      let d = new Date();
+      let t = d.getTime();
+
+      seq0.update(t);
+    }, 5);
+
     const s = (p) => {
 
-      let x = 100;
-      let y = 100;
-
       p.setup = () => {
-        let canvas = p.createCanvas(width, height);
+        const canvas = p.createCanvas(width, height);
+        // TODO: define in HTML and attach to parent
         canvas.style('top', '0px');
         canvas.style('left', '0px');
         canvas.style('z-index', '2');
@@ -1203,12 +1234,27 @@ color *= 1.0 - blending*m_dist;
       };
 
       p.draw = () => {
-        let d = new Date();
-        let t = d.getTime();
+        const d = new Date();
+        const t = d.getTime();
         p.clear();
         p.fill(255);
-        x = seq0.getNote(t) * 10;
-        p.rect(x, y, 50, 50);
+        p.stroke(255);
+        p.strokeWeight(3);
+        p.translate(0, p.height * 0.5);
+        for(let i = 0; i < 3; i++) {
+          const w = p.width / 3.0;
+          const x = i * w;
+          const s = {
+            none: 0,
+            up: -1,
+            down: 1
+          };
+          const tt = t + i * 100;
+          const y = p.map(seq0.getBang(tt), 0, 1, 0, w / 2.0) * s[seq0.getNote(tt)];
+          p.line(x, y, x + w, y);
+          p.ellipse(x, y, w * 0.025);
+          p.ellipse(x + w, y, w * 0.025);
+        }
       };
     };
 
