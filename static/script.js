@@ -163,7 +163,7 @@ var keyboard = new AudioKeys();
 keyboard.down(function (note) {
   // do things with the note object
   console.log(note)
-  const f = note.frequency;
+  const f = note.frequency/4;
   document.getElementById('slide' + 0).value = f;
   socket.emit('slide', { id: 0, val: f });
   sliderValues[0] = f;
